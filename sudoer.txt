@@ -1,0 +1,133 @@
+                                          服务第四天
+                                          熟记ldd命令
+
+在修改配置文件之前先建一个
+/etc/profile.d/vim.sh  的配置文件
+文件内容如下：
+export  EDITOR=vim
+
+                                                                sudoers配置文件
+特例：
+leo ALL=(root)  /bin/cat /var/log/messages* , !/bin/cat  /var/log/messages* *
+
+/etc/sudoers
+
+执行人      允许登陆的主机=（代表谁）     执行什么操作
+
+
+例如：
+leo    ALL=(root)   /usr/bin/mount /dev/cdrom /mnt     重点：这个配置文件里写的东西要完全相同，比如说，/mnt  后面是没有/的，如果在执行  sudo -u root /usr/bin/mount /dev/cdrom /mnt/，像这种情况就不能执行，多个命令之间用逗号隔开，还有一点，在执行人对文件具备读写权限的情况下，可以使用vim修改文件内容，但是无法使用重定向追加或覆盖文件内容
+
+
+执行组      允许登陆的主机=（代表组）     执行什么操作                                                                              
+  
+                                                              visodu   （推荐使用这个修改相关配置文件）
+能检查写的/etc/sudoers和/etc/sudoers.d目录下的文件是否有语法错误
+
+
+
+
+
+                                                              sodu别名
+四种命名方式：
+User_Alias          LEO=lei，wang，%wheel                        //能使用的组或成员
+Runas_Alias        ADMIN=root，mage                                                        //代替的用户
+Host_Alias          LOCALNET=192.168.34.0/24，172.18.34.6，www.baidu.com      //能远程登陆的主机
+Cmnd_Alias        DISKCMD=/bin/，!/bin/fdisk              //能执行/bin下除了fdisk之外的所有命令
+
+使用者            登陆主机IP                               免密码执行命令       命令
+LEO            LOCALNET=(ADMIN)                     NOPASSWD:DISKCMD
+
+
+Defaults:wang runas_default=tom    当wang用户要切换身份时，把默认值设置为tom
+wang ALL=(tom,jerry)  ALL
+
+
+
+sudo [-u user] COMMAND 
+-V 显示版本信息等配置信息 
+-u user 默认为root -l,ll 列出用户在主机上可用的和被禁止的命令 
+-v 再延长密码有效期限5分钟,更新时间戳 
+-k 清除时间戳（1970-01-01），下次需要重新输密码 
+-K 与-k类似，还要删除时间戳文件 
+-b 在后台执行指令 
+-p 改变询问密码的提示符号 
+示例：-p ”password on %h for user %p:”
+
+
+
+
+
+                                                              tcp_wrappers
+
+
+和wrapper相关的文件
+/etc/hosts.allow
+/etc/hosts.deny
+
+查看库文件中是否包含libwrap库，如果有，则说明这个命令是能被
+ldd  `which  命令`  |  grep  libwrap 
+strings `which sshd`|grep wrap
+libwrap.so.0 => /lib64/libwrap.so.0 (0x00007f9d22323000)
+
+格式：
+服务：IP地址或IP地址段
+sshd@192.168.34.6：192.168.34.7        //在192.168.34.6的机器上时候，这条策略才会实施
+xinetd：172.18.0.0/255.255.0.0            //在所有机器上这条策略都会实施
+关键字：
+LOCAL,UNKNOW,KNOWN,PARANOID
+
+EXCEPT用法：
+hosts.deny
+vsftpd: 172.16. EXCEPT 172.16.100.0/24 EXCEPT 172.16.100.1   //除了172.16.100.0/24这个网段的IP都拒绝
+
+vsftpd: 172.16. EXCEPT 172.16.100.0/24 EXCEPT 172.16.100.1:allow   //除了172.16.100.0/24这个网段的IP都允许
+
+spawn：重点，放在hosts.allow中
+
+sshd: 192.168.34.8 : spawn echo "`date +'%%F %%T'` login attempt from %c to %s,%d" >> /data/sh.txt;wall creaker
+
+
+sshd: all : spawn wall "`date +'%%F %%T'` login attempt from %c to %s,%d"  只要有人ssh登陆，就会广播，包括自己！
+
+
+twist:重点，不管怎样直接拒绝，再给客户端发信息
+
+sshd: 192.168.34.8 : twist echo "`date +'%%F %%T'` login attempt from %c to %s,%d" >> /data/sh.txt
+
+tcpdmatch测试:重点
+先再其他文件中创建一个hosts.allow和一个hosts.deny文件，再往里面写入信息
+
+tcpdmatch -d  sshd 192.168.34.8
+
+-d  当前目录
+
+
+
+                                                              pam模块
+
+cat sshd
+cat system-auth
+ulimit  -a  查看现在目前被限制的值是多少        在/etc/pam.d/pam_limits.so这个模块可以调整阈值
+ab -c 100 -n 2000 http://192.168.34.6        这条命令可用来查看服务器的性能
+vim /etc/pam.d/su 这个文件来修改使用的pam模块
+在第一行加上
+
+
+/etc/shells
+注释掉最后一行，即/bin/csh
+chsh -s /bin/csh  leo   
+su -  leo  输入密码，发现登陆失败
+此时/bin/csh调用的pam_shells.so模块中因为/bin/csh选项不能使用所以，无法登陆
+
+
+
+
+
+
+
+
+
+
+
+
